@@ -128,3 +128,7 @@ you're at 0.32 score, how can you increase performance to 1.0 ?
 ---
 
 I think the score is cumulative of all 1,2,3, together
+
+---
+
+sure
