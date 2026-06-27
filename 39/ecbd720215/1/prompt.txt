@@ -1,0 +1,1 @@
+can you create a nextjs app in @laurence\ that takes a sample scan from C:\Users\laure\Downloads\ehl-paris-medical-image-retrieval\dataset1\images\train\gallery and visualizes in frontend along xy-plane?
