@@ -1,0 +1,158 @@
+Read the root CLAUDE.md and, for REFERENCE ONLY, laurence/dinov2_baseline_modal.py
+and laurence/sift_baseline_modal.py. Then read Alvaro/src/local_eval.py and
+Alvaro/src/simulate.py so you understand the existing harness and proxy outputs.
+
+HARD RULE: work ONLY inside the Alvaro/ directory. You may READ files anywhere in
+the repo, but you must NOT create, modify, move, or delete anything outside Alvaro/.
+Do not import from laurence/; if you need its logic, copy the relevant parts into
+Alvaro/ so our code stays independent of Laurence's.
+
+CONTEXT (write this into a new Alvaro/CLAUDE.md as the first step):
+- Task = cross-modal MRI retrieval; score = mean of (ds1_MRR, ds2_MRR, ds3_MRR),
+  equal weight. ds2/ds3 have no labels = 2/3 of the score = a generalization problem.
+- We now have Modal GPU access (Laurence's workspace; `modal` is pip-installed).
+  Modal pattern, from laurence/*.py: volume `ehl-2026-vol-2` mounts at /data;
+  a `_find_data_root` rglobs for dataset1/; GPU functions use
+  @app.function(image=..., volumes={"/data": vol}, gpu="T4", ...); the remote fn
+  returns a CSV string and a local_entrypoint writes it; image built with
+  modal.Image.debian_slim(...).pip_install(...); a `.nii.gz`→`.nii` resolve
+  fallback handles uncompressed local copies.
+- Local-eval noise bar: a single 50-query seed has ~±0.05 MRR noise — only trust
+  changes larger than that. Proxies are SYNTHETIC: directional, not exact predictors
+  of Kaggle.
+- Plan: Phase A (this task) = local per-dataset diagnostic + MI ranker. Phase B =
+  ds3 header-geometry probe. Phase C = Modal full submission + rank fusion.
+
+GOAL OF THIS TASK: produce one comparison table — method × dataset → MRR — on our
+local proxies, establishing the baseline failure pattern and testing mutual
+information as a first improvement. Everything here runs on CPU/MPS, no Modal,
+no Kaggle.
+
+Build three modules in Alvaro/src/, in checkpoints. After each checkpoint, show me
+it works before moving on.
+
+CHECKPOINT 1 — evaluate.py (the reusable engine):
+  First, DISCOVER and print the actual paths of the existing split + proxy files
+  (internal val queries/gallery/truth, and the proxy_ds2 / proxy_ds3 query+gallery
+  CSVs) produced by local_eval.py and simulate.py. Do not hardcode paths you
+  haven't confirmed exist.
+  Then write a function that takes (a) a ranking function with signature
+  rank(query_id, query_path, {target_id: target_path}) -> ordered list of target_ids,
+  and (b) a queries_csv + gallery_csv + truth_csv, runs the ranker over all queries,
+  and scores the result with the EXISTING local_eval.py MRR (do not reimplement MRR).
+  It should evaluate across three pools: internal ds1 split, proxy_ds2, proxy_ds3,
+  and return a dict of per-pool MRR. Add a tiny smoke test with a trivial
+  random-ranking function to confirm wiring (expect ~random MRR).
+
+CHECKPOINT 2 — dinov2_ranker.py (the baseline to beat):
+  Port Laurence's DINOv2 zero-shot logic (3 axial slices at 0.35/0.50/0.65 →
+  uint8 RGB → DINOv2-base CLS token → average slices → unit vector → cosine) into a
+  device-agnostic ranking function (cuda/mps/cpu auto-select). It must be importable
+  and plug into evaluate.py. Run it across the three pools and print the MRR per pool.
+  (If local DINOv2 is too slow on the proxy image counts, tell me — we move it to
+  Modal rather than waiting.)
+
+CHECKPOINT 3 — mi_ranker.py (the first improvement):
+  A ranking function that scores each query↔target by NORMALIZED MUTUAL INFORMATION
+  of voxel intensities. Implementation notes: load volumes with nibabel; restrict to
+  the brain region (nonzero-voxel mask of the union/intersection); for speed,
+  downsample volumes (e.g. to ~64^3) before the joint histogram; compute NMI =
+  (H(A)+H(B))/H(A,B) from a 2D histogram (32–64 bins). This is training-free.
+  Run it across the three pools and print MRR per pool.
+
+FINAL OUTPUT: print one table — rows {dinov2, mutual_information}, columns
+{ds1_internal, ds2_proxy, ds3_proxy} — and a one-line read of the pattern. My
+hypothesis to confirm or refute: DINOv2 is decent on ds1 and collapses toward
+random on ds2_proxy; MI wins ds1, is okay on ds3_proxy (geometry roughly
+preserved), and fails on ds2_proxy (independent deformation). If the table shows
+something else, say so plainly — don't massage it to fit.
+
+Before writing each checkpoint, briefly explain your plan so I can confirm I
+understand it. Keep functions small, comment non-obvious indexing, and don't give
+me code I couldn't explain back to you.
+
+---
+
+Read Alvaro/CLAUDE.md and Alvaro/src/mi_ranker.py and Alvaro/src/evaluate.py so
+you reuse the existing MI ranker. For REFERENCE ONLY (do not import), look at how
+laurence/dinov2_baseline_modal.py builds its prediction_specs loop, its resolve()
+with the .nii.gz→.nii fallback, and _find_data_root.
+
+HARD RULE: work ONLY inside Alvaro/. Read anywhere, write nowhere outside Alvaro/.
+Copy any logic you need from laurence/ into Alvaro/ — do not import from laurence/.
+
+GOAL: a script Alvaro/src/make_submission.py that runs a ranking function over the
+REAL val+test data for all three datasets and writes a Kaggle-format combined CSV
+(query_id,target_id_ranking), so we can submit pure-MI and read the real
+per-dataset numbers.
+
+Requirements:
+- CLI: --data-root (required), --out (default Alvaro/generated/mi_submission.csv),
+  --datasets (default "1,2,3" — lets us generate a single-dataset file so we can
+  read that dataset's real MRR via Kaggle's "omitted=0, ×3" rule), --downsample
+  (passed through to the MI ranker).
+- Mirror Laurence's six prediction sets: for each requested dataset, both val and
+  test, load {split}_queries.csv and {split}_gallery.csv, resolve image paths with
+  the .nii.gz→.nii fallback, and skip cleanly with a printed warning if a CSV or
+  image is missing.
+- For each query, rank its SAME-dataset SAME-split gallery with the MI ranker and
+  write the full space-separated ranking. Never mix pools.
+- CACHE the loaded+downsampled volume arrays in memory (a dict keyed by image path)
+  so a volume that appears in multiple comparisons is read and downsampled once.
+  Print progress every ~10 queries and total wall-clock time at the end.
+- SANITY BLOCK before writing: for the first 2 dataset1 val queries, print the
+  top-3 ranked target_ids with their MI scores and the score of the WORST-ranked
+  target, so I can eyeball that MI actually discriminates (top score clearly above
+  the tail) before I trust the file. If the spread looks degenerate, say so.
+- Print the row count at the end and assert it equals the number of queries across
+  the requested datasets/splits.
+
+Do NOT submit anything or call any network API — just write the CSV locally.
+
+Before writing, explain your plan for the caching and the prediction-set loop so I
+can confirm. Keep it small; comment the ranking-length and pool-isolation logic.
+
+---
+
+Read Alvaro/CLAUDE.md, Alvaro/src/mi_ranker.py, Alvaro/src/evaluate.py, and
+Alvaro/src/compare.py so you reuse the existing harness and the plain-MI ranker.
+
+HARD RULE: work ONLY inside Alvaro/. Read anywhere, write nowhere outside Alvaro/.
+
+GOAL: test whether registering images BEFORE computing MI recovers dataset2, where
+plain MI collapses to 0.29. This is a LOCAL proxy experiment — no Modal, no Kaggle.
+
+Add antspyx to the .venv (`uv pip install antspyx`). WARNING: it's a large/slow
+install and import; confirm `import ants` works before building, and tell me if it
+fails so we pivot to SimpleITK rather than burning time.
+
+Build Alvaro/src/reg_mi_ranker.py: a ranking function with the SAME interface the
+existing evaluate.py expects, that for each query↔target pair:
+  1. Loads both volumes (nibabel), downsamples for speed (start ~96^3 — registration
+     needs more detail than the 64^3 we use for plain MI; make it a param).
+  2. Registers the TARGET to the QUERY with ANTs affine:
+     ants.registration(fixed=query_img, moving=target_img, type_of_transform="Affine").
+     Use the registered "warpedmovout" output.
+  3. Computes normalized mutual information between the query and the REGISTERED
+     target, reusing our existing NMI code from mi_ranker.py (do not reimplement it).
+  4. Ranks gallery targets by that post-registration NMI.
+  Make type_of_transform a parameter (default "Affine") so we can later try "SyN".
+
+Then evaluate it across the three local pools (ds1 internal, ds2 proxy, ds3 proxy)
+via evaluate.py, and print a table comparing PLAIN MI vs REGISTER-THEN-MI:
+
+  pool          plain_MI    reg_then_MI
+  ds1_internal    1.00         ____
+  ds2_proxy       0.29         ____
+  ds3_proxy       0.98         ____
+
+THE KEY QUESTION: does ds2_proxy jump well above 0.29? Also confirm ds1/ds3 do NOT
+regress (registering already-aligned images shouldn't hurt much). If ds2 barely
+moves, say so plainly — that means affine isn't enough and we try SyN next.
+
+Performance note: 40x40 pairwise affine on the proxy is ~1600 registrations. Print
+progress and total time. If a single affine takes >5s at 96^3, downsample more and
+tell me — we need to know the per-registration cost before scaling to real data.
+
+Before writing, explain your plan and confirm the antspyx import works. Keep the
+ranking function small and reuse mi_ranker's NMI.

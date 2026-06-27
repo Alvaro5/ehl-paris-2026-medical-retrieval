@@ -1,0 +1,72 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "08edb181d887",
+  "session_id": "d3e8fc6f-fd1d-48d3-8303-1980c07c6ebc",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-27T20:46:49.95983Z",
+  "branch": "main",
+  "checkpoints_count": 3,
+  "save_step_count": 3,
+  "files_touched": [
+    "Alvaro/src/compare.py",
+    "Alvaro/src/dinov2_ranker.py",
+    "Alvaro/src/evaluate.py",
+    "Alvaro/src/make_submission.py",
+    "Alvaro/src/mi_ranker.py",
+    "Alvaro/src/reg_compare.py",
+    "Alvaro/src/reg_mi_ranker.py"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-8",
+  "turn_id": "9f945a2e0df6",
+  "token_usage": {
+    "input_tokens": 6789,
+    "cache_creation_tokens": 267257,
+    "cache_read_tokens": 4077202,
+    "output_tokens": 61574,
+    "api_call_count": 52
+  },
+  "session_metrics": {
+    "turn_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-27T20:46:49.942309Z",
+    "agent_lines": 969,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 969,
+    "total_lines_changed": 969,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 729,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 380,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1298,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "Alvaro/generated/mi_ds1.csv": 141,
+        "Alvaro/generated/mi_ds2.csv": 141,
+        "Alvaro/generated/mi_ds3.csv": 98
+      }
+    }
+  ]
+}

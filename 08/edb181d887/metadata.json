@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "08edb181d887",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "Alvaro/src/compare.py",
+    "Alvaro/src/dinov2_ranker.py",
+    "Alvaro/src/evaluate.py",
+    "Alvaro/src/make_submission.py",
+    "Alvaro/src/mi_ranker.py",
+    "Alvaro/src/reg_compare.py",
+    "Alvaro/src/reg_mi_ranker.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/08/edb181d887/0/metadata.json",
+      "transcript": "/08/edb181d887/0/full.jsonl",
+      "content_hash": "/08/edb181d887/0/content_hash.txt",
+      "prompt": "/08/edb181d887/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6789,
+    "cache_creation_tokens": 267257,
+    "cache_read_tokens": 4077202,
+    "output_tokens": 61574,
+    "api_call_count": 52
+  }
+}
