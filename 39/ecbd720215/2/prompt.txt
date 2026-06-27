@@ -1,0 +1,37 @@
+consider @laurence\ can you create a new very simple program that just takes as input 100 xy-plane scans, uses dino-v2 embeddings, and then there is a small, fully connected MLP that is trained on similarity score generation for dataset 1?
+
+---
+
+what is the input shape?
+
+---
+
+should each input be of size (100,768) because of 100 xy-plane scans using dino?
+
+---
+
+how many xy-plane scans?
+
+---
+
+can you somehow feed a compressed version of all the 3D voxel data to the network?
+
+---
+
+web search about using 3d voxels as input?
+
+---
+
+consider the teams that won https://learn2reg.grand-challenge.org/learn2reg-2025/
+
+---
+
+estimate how much time each takes to run, and esimated success ?
+
+---
+
+is learn2reg doing the same task as what's expected in this challenge?
+
+---
+
+can you do research on the web about what are the most relevant methods that can be used (possibly a pre-trained encoder) to solve this EHL 2026 topic?

@@ -1,0 +1,250 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "39ecbd720215",
+  "session_id": "aeeb9130-73fe-4fe6-b09b-35509fe4ffea",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-27T18:53:40.2434644Z",
+  "branch": "main",
+  "checkpoints_count": 10,
+  "save_step_count": 10,
+  "files_touched": [
+    "laurence/METHODS.md",
+    "laurence/mlp_similarity_modal.py",
+    "laurence/nii-viewer/app/api/files/route.ts",
+    "laurence/nii-viewer/app/api/slice/route.ts",
+    "laurence/nii-viewer/app/components/NiiViewer.tsx"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-4-6",
+  "turn_id": "bf4c77c2a9b2",
+  "token_usage": {
+    "input_tokens": 3097,
+    "cache_creation_tokens": 52233,
+    "cache_read_tokens": 1424851,
+    "output_tokens": 19199,
+    "api_call_count": 29
+  },
+  "session_metrics": {
+    "turn_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-27T18:53:40.2007958Z",
+    "agent_lines": 542,
+    "agent_removed": 0,
+    "human_added": 28674,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 29216,
+    "total_lines_changed": 29216,
+    "agent_percentage": 1.8551478641840087,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 1537,
+      "user_lines_removed": 739,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 12,
+        "README.md": 255,
+        "laurence/.claude/settings.local.json": 7,
+        "laurence/METHODS.md": 30,
+        "laurence/preview_data.py": 393,
+        "laurence/visualize_results.py": 356,
+        "slice_clip_baseline.py": 484
+      },
+      "user_removed_per_file": {
+        "README.md": 255,
+        "slice_clip_baseline.py": 484
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 19,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1820,
+      "agent_lines_removed": 739,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 12,
+        "laurence/.claude/settings.local.json": 7
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 19,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1820,
+      "agent_lines_removed": 739,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 12,
+        "laurence/.claude/settings.local.json": 7
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 19,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1820,
+      "agent_lines_removed": 739,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 12,
+        "laurence/.claude/settings.local.json": 7
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 19,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1820,
+      "agent_lines_removed": 739,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 12,
+        "laurence/.claude/settings.local.json": 7
+      }
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 318,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1820,
+      "agent_lines_removed": 739,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 13,
+        "laurence/.claude/settings.local.json": 7,
+        "laurence/nii-viewer/.gitignore": 41,
+        "laurence/nii-viewer/README.md": 36,
+        "laurence/nii-viewer/app/globals.css": 26,
+        "laurence/nii-viewer/app/layout.tsx": 33,
+        "laurence/nii-viewer/app/page.tsx": 65,
+        "laurence/nii-viewer/eslint.config.mjs": 18,
+        "laurence/nii-viewer/next.config.ts": 7,
+        "laurence/nii-viewer/package.json": 26,
+        "laurence/nii-viewer/postcss.config.mjs": 7,
+        "laurence/nii-viewer/public/file.svg": 1,
+        "laurence/nii-viewer/public/globe.svg": 1,
+        "laurence/nii-viewer/public/next.svg": 1,
+        "laurence/nii-viewer/public/vercel.svg": 1,
+        "laurence/nii-viewer/public/window.svg": 1,
+        "laurence/nii-viewer/tsconfig.json": 34
+      }
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 7159,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1820,
+      "agent_lines_removed": 739,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 13,
+        "laurence/.claude/settings.local.json": 7,
+        "laurence/nii-viewer/.gitignore": 41,
+        "laurence/nii-viewer/AGENTS.md": 5,
+        "laurence/nii-viewer/CLAUDE.md": 1,
+        "laurence/nii-viewer/README.md": 36,
+        "laurence/nii-viewer/app/globals.css": 26,
+        "laurence/nii-viewer/app/layout.tsx": 33,
+        "laurence/nii-viewer/app/page.tsx": 65,
+        "laurence/nii-viewer/eslint.config.mjs": 18,
+        "laurence/nii-viewer/next.config.ts": 7,
+        "laurence/nii-viewer/package-lock.json": 6834,
+        "laurence/nii-viewer/package.json": 27,
+        "laurence/nii-viewer/postcss.config.mjs": 7,
+        "laurence/nii-viewer/public/file.svg": 1,
+        "laurence/nii-viewer/public/globe.svg": 1,
+        "laurence/nii-viewer/public/next.svg": 1,
+        "laurence/nii-viewer/public/vercel.svg": 1,
+        "laurence/nii-viewer/public/window.svg": 1,
+        "laurence/nii-viewer/tsconfig.json": 34
+      }
+    },
+    {
+      "checkpoint_number": 8,
+      "user_lines_added": 7106,
+      "user_lines_removed": 0,
+      "agent_lines_added": 2060,
+      "agent_lines_removed": 739,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 20,
+        "laurence/.claude/settings.local.json": 7,
+        "laurence/nii-viewer/.gitignore": 41,
+        "laurence/nii-viewer/AGENTS.md": 5,
+        "laurence/nii-viewer/CLAUDE.md": 1,
+        "laurence/nii-viewer/README.md": 36,
+        "laurence/nii-viewer/app/globals.css": 26,
+        "laurence/nii-viewer/app/layout.tsx": 33,
+        "laurence/nii-viewer/app/page.tsx": 5,
+        "laurence/nii-viewer/eslint.config.mjs": 18,
+        "laurence/nii-viewer/next.config.ts": 7,
+        "laurence/nii-viewer/package-lock.json": 6834,
+        "laurence/nii-viewer/package.json": 27,
+        "laurence/nii-viewer/postcss.config.mjs": 7,
+        "laurence/nii-viewer/public/file.svg": 1,
+        "laurence/nii-viewer/public/globe.svg": 1,
+        "laurence/nii-viewer/public/next.svg": 1,
+        "laurence/nii-viewer/public/vercel.svg": 1,
+        "laurence/nii-viewer/public/window.svg": 1,
+        "laurence/nii-viewer/tsconfig.json": 34
+      }
+    },
+    {
+      "checkpoint_number": 9,
+      "user_lines_added": 7108,
+      "user_lines_removed": 0,
+      "agent_lines_added": 2060,
+      "agent_lines_removed": 739,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 22,
+        "laurence/.claude/settings.local.json": 7,
+        "laurence/nii-viewer/.gitignore": 41,
+        "laurence/nii-viewer/AGENTS.md": 5,
+        "laurence/nii-viewer/CLAUDE.md": 1,
+        "laurence/nii-viewer/README.md": 36,
+        "laurence/nii-viewer/app/globals.css": 26,
+        "laurence/nii-viewer/app/layout.tsx": 33,
+        "laurence/nii-viewer/app/page.tsx": 5,
+        "laurence/nii-viewer/eslint.config.mjs": 18,
+        "laurence/nii-viewer/next.config.ts": 7,
+        "laurence/nii-viewer/package-lock.json": 6834,
+        "laurence/nii-viewer/package.json": 27,
+        "laurence/nii-viewer/postcss.config.mjs": 7,
+        "laurence/nii-viewer/public/file.svg": 1,
+        "laurence/nii-viewer/public/globe.svg": 1,
+        "laurence/nii-viewer/public/next.svg": 1,
+        "laurence/nii-viewer/public/vercel.svg": 1,
+        "laurence/nii-viewer/public/window.svg": 1,
+        "laurence/nii-viewer/tsconfig.json": 34
+      }
+    },
+    {
+      "checkpoint_number": 10,
+      "user_lines_added": 7108,
+      "user_lines_removed": 0,
+      "agent_lines_added": 2060,
+      "agent_lines_removed": 739,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 22,
+        "laurence/.claude/settings.local.json": 7,
+        "laurence/nii-viewer/.gitignore": 41,
+        "laurence/nii-viewer/AGENTS.md": 5,
+        "laurence/nii-viewer/CLAUDE.md": 1,
+        "laurence/nii-viewer/README.md": 36,
+        "laurence/nii-viewer/app/globals.css": 26,
+        "laurence/nii-viewer/app/layout.tsx": 33,
+        "laurence/nii-viewer/app/page.tsx": 5,
+        "laurence/nii-viewer/eslint.config.mjs": 18,
+        "laurence/nii-viewer/next.config.ts": 7,
+        "laurence/nii-viewer/package-lock.json": 6834,
+        "laurence/nii-viewer/package.json": 27,
+        "laurence/nii-viewer/postcss.config.mjs": 7,
+        "laurence/nii-viewer/public/file.svg": 1,
+        "laurence/nii-viewer/public/globe.svg": 1,
+        "laurence/nii-viewer/public/next.svg": 1,
+        "laurence/nii-viewer/public/vercel.svg": 1,
+        "laurence/nii-viewer/public/window.svg": 1,
+        "laurence/nii-viewer/tsconfig.json": 34
+      }
+    }
+  ]
+}
