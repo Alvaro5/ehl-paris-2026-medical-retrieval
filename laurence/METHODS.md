@@ -208,6 +208,36 @@ sift_baseline
 
 ---
 
+---
+
+## Visualization — `visualize_results.py`
+
+Renders retrieval results as dark-background PNG grids (one file per dataset/split).
+
+```
+modal run laurence/visualize_results.py --csv strong_submission.csv
+modal run laurence/visualize_results.py --csv siglip_submission.csv --out viz_siglip/ --n-queries 12 --top-k 6
+```
+
+**Layout:** each PNG is `n_queries` rows × `(1 + top_k)` columns.
+- Column 0 — query axial mid-slice (blue border)
+- Columns 1…K — top-K ranked targets
+
+**Border colours (when ground-truth `*_pairs.csv` is present):**
+
+| Colour | Meaning |
+|---|---|
+| Blue | Query |
+| Green | Correct match at Rank 1 |
+| Orange | Correct match, but not Rank 1 |
+| Red | Wrong match |
+| Grey | No ground truth available |
+
+Slices are memory-mapped for fast loading (single-slice I/O on uncompressed `.nii`).
+The script runs on Modal (CPU worker, no GPU needed) and streams PNG bytes back locally.
+
+---
+
 ## Key hyperparameters at a glance
 
 | Param | `dinov2_finetune` | `hybrid` | `rad_dino` | `strong` | `siglip` |
