@@ -3,10 +3,13 @@
   "checkpoint_id": "3f279a0b3f93",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 4,
+  "checkpoints_count": 7,
   "files_touched": [
+    "laurence/METHODS.md",
     "laurence/hybrid_modal.py",
-    "laurence/rad_dino_modal.py"
+    "laurence/rad_dino_modal.py",
+    "laurence/siglip_modal.py",
+    "laurence/strong_modal.py"
   ],
   "sessions": [
     {
@@ -14,13 +17,19 @@
       "transcript": "/3f/279a0b3f93/0/full.jsonl",
       "content_hash": "/3f/279a0b3f93/0/content_hash.txt",
       "prompt": "/3f/279a0b3f93/0/prompt.txt"
+    },
+    {
+      "metadata": "/3f/279a0b3f93/1/metadata.json",
+      "transcript": "/3f/279a0b3f93/1/full.jsonl",
+      "content_hash": "/3f/279a0b3f93/1/content_hash.txt",
+      "prompt": "/3f/279a0b3f93/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 145,
-    "cache_creation_tokens": 202083,
-    "cache_read_tokens": 1739051,
-    "output_tokens": 56120,
-    "api_call_count": 32
+    "input_tokens": 934,
+    "cache_creation_tokens": 389103,
+    "cache_read_tokens": 4925910,
+    "output_tokens": 117115,
+    "api_call_count": 70
   }
 }

@@ -1,0 +1,9 @@
+consider the task and the files in @laurence\ how would you improve this to have an extremely strong improvement?
+
+---
+
+can you look at all methods in @laurence and summarize in tabular format in a new .md file?
+
+---
+
+can you consider another method using SigLIP ?

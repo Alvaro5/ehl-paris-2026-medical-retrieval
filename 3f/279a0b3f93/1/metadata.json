@@ -1,0 +1,93 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "3f279a0b3f93",
+  "session_id": "618d2992-eb39-458e-a66e-5695c91d210b",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-27T16:40:43.153049Z",
+  "branch": "main",
+  "checkpoints_count": 3,
+  "save_step_count": 3,
+  "files_touched": [
+    "laurence/METHODS.md",
+    "laurence/siglip_modal.py",
+    "laurence/strong_modal.py"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-4-6",
+  "turn_id": "e8a522c80882",
+  "token_usage": {
+    "input_tokens": 789,
+    "cache_creation_tokens": 187020,
+    "cache_read_tokens": 3186859,
+    "output_tokens": 60995,
+    "api_call_count": 38
+  },
+  "session_metrics": {
+    "turn_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-27T16:40:43.0675162Z",
+    "agent_lines": 1063,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 754,
+    "human_removed": 0,
+    "total_committed": 1817,
+    "total_lines_changed": 1817,
+    "agent_percentage": 58.503026967528896,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 2137,
+      "user_lines_removed": 739,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/agents/entire-search.md": 25,
+        ".claude/settings.json": 84,
+        "README.md": 255,
+        "laurence/.claude/settings.local.json": 7,
+        "laurence/hybrid_modal.py": 416,
+        "laurence/rad_dino_modal.py": 488,
+        "slice_clip_baseline.py": 484,
+        "tmp.csv": 378
+      },
+      "user_removed_per_file": {
+        "README.md": 255,
+        "slice_clip_baseline.py": 484
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 392,
+      "user_lines_removed": 377,
+      "agent_lines_added": 2982,
+      "agent_lines_removed": 739,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 8,
+        "laurence/.claude/settings.local.json": 7,
+        "tmp.csv": 377
+      },
+      "user_removed_per_file": {
+        "tmp.csv": 377
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 392,
+      "user_lines_removed": 377,
+      "agent_lines_added": 3127,
+      "agent_lines_removed": 739,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 8,
+        "laurence/.claude/settings.local.json": 7,
+        "tmp.csv": 377
+      },
+      "user_removed_per_file": {
+        "tmp.csv": 377
+      }
+    }
+  ]
+}
