@@ -1,0 +1,72 @@
+Read CLAUDE.md for full project context.
+
+Build a simulation module `src/simulate.py` that synthesizes dataset2-like and
+dataset3-like conditions from our LABELED dataset1 internal-val split. We have no
+ds2/ds3 labels, so this lets us measure generalization locally (and later reuse
+the same transforms as training augmentation) without spending Kaggle submissions.
+
+Stack: monai + nibabel + numpy + pandas + matplotlib + torch. CPU only. Use the
+project .venv. Do NOT edit slice_clip_baseline.py.
+
+INPUT: the splits/ directory from src/local_eval.py — specifically
+internal_val_queries.csv, internal_val_gallery.csv, internal_val_truth.csv.
+Only perturb the VAL split. Never touch training pairs.
+
+Two proxy modes, faithful to how the real datasets differ (see CLAUDE.md):
+
+  --mode ds2  (breaks GEOMETRY, both sides, INDEPENDENTLY)
+    Apply random rigid affine (rotation + translation) AND non-linear elastic
+    deformation to every image. CRITICAL: a query and its true target must get
+    DIFFERENT random draws — they must NOT end up aligned to each other, or the
+    proxy is meaningless. Apply to BOTH queries and gallery.
+
+  --mode ds3  (keeps geometry ~shared, breaks CONTENT on the target only)
+    Queries stay intact (no geometric warp). For each gallery/target image:
+    simulate a resection by zeroing a contiguous local region inside the brain,
+    plus a scanner/intensity shift (bias field + mild intensity/gamma change).
+    Do NOT apply large global affine here — real ds3 is resampled to ~the same
+    space, so preserve that. The asymmetry (query intact, target altered) is
+    intentional and mirrors pre-op→intra-op.
+
+SEEDING: derive each image's random seed from a hash of its image_id combined
+with a base --seed. Because query_id and target_id are globally unique strings,
+this AUTOMATICALLY gives independent draws for query vs target and is fully
+reproducible. Expose --seed.
+
+MAGNITUDES: make rotation/translation/elastic strength and resection size
+configurable with sensible starting defaults. We will calibrate by eye + by the
+resulting MRR drop, so defaults are a starting point, not a final answer.
+
+OUTPUT: write into splits/proxy_ds2/ and splits/proxy_ds3/:
+  - perturbed image copies as .nii.gz (write AND reference .nii.gz consistently —
+    do not reuse any .nii/.nii.gz remap hack; we control both files and CSVs here)
+  - val_queries.csv and val_gallery.csv matching the EXACT schemas in CLAUDE.md,
+    with query_image/target_image pointing at the perturbed copies and ALL IDs
+    preserved unchanged (so splits/internal_val_truth.csv still scores it).
+  Suggested I/O: MONAI LoadImaged → transforms → SaveImaged, to preserve
+  affine/spacing metadata. Your call, but output must be baseline-loadable.
+
+VERIFICATION (the trust gate — build this before I rely on any number): for one
+matched pair, save a PNG grid of middle-axial slices:
+  ds2: [orig query | perturbed query] and [orig target | perturbed target]
+  ds3: [orig target | perturbed target] showing the resection clearly
+  I need to confirm the warps look like plausible brains (not garbled) and the
+  resection looks like missing tissue (not a black box in mid-air) before trusting
+  this as a proxy.
+
+CLI: `simulate --mode ds2 ...` and `simulate --mode ds3 ...`, each producing the
+images, CSVs, and the verification PNG.
+
+As a final step, append two lines to CLAUDE.md: (a) local-eval noise bar — a
+single 50-query seed has ~±0.05 MRR noise, so only trust changes larger than
+that; (b) the proxy workflow (train baseline on clean split, eval on proxy_ds2 /
+proxy_ds3, score against internal_val_truth.csv).
+
+Before writing code, explain your plan for: how you guarantee query/target
+independence in ds2, and how you place the resection region inside the brain (not
+in background) for ds3. I want to confirm I understand both before you build.
+Work in small, verifiable steps.
+
+---
+
+okay now could you move all of my code (not the default code of the forked repo) into a separate "Alvaro" folder since we decided to separate the code of each member with folders. Then could you gitignore everything that should'nt be pushed to the repo and then commit + push

@@ -1,0 +1,78 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "5ed45a98a011",
+  "session_id": "08f341eb-9264-490c-8a07-cb543165a34f",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-27T16:39:20.150461Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CLAUDE.md",
+    ".gitignore"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-8",
+  "turn_id": "85f532c71029",
+  "token_usage": {
+    "input_tokens": 5160,
+    "cache_creation_tokens": 79426,
+    "cache_read_tokens": 2555256,
+    "output_tokens": 48671,
+    "api_call_count": 43
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-27T16:39:20.126383Z",
+    "agent_lines": 21,
+    "agent_removed": 0,
+    "human_added": 729,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 750,
+    "total_lines_changed": 750,
+    "agent_percentage": 2.8000000000000003,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 3335,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/agents/entire-search.md": 25,
+        ".claude/settings.json": 84,
+        ".codex/agents/entire-search.toml": 23,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 52,
+        "CLAUDE.md": 58,
+        "dataset1/test_gallery.csv": 101,
+        "dataset1/test_queries.csv": 101,
+        "dataset1/train_pairs.csv": 351,
+        "dataset1/val_gallery.csv": 41,
+        "dataset1/val_queries.csv": 41,
+        "dataset2/test_gallery.csv": 101,
+        "dataset2/test_queries.csv": 101,
+        "dataset2/val_gallery.csv": 41,
+        "dataset2/val_queries.csv": 41,
+        "dataset3/test_gallery.csv": 78,
+        "dataset3/test_queries.csv": 78,
+        "dataset3/val_gallery.csv": 21,
+        "dataset3/val_queries.csv": 21,
+        "splits/baseline_run.log": 535,
+        "splits/internal_train_pairs.csv": 301,
+        "splits/internal_val_gallery.csv": 51,
+        "splits/internal_val_queries.csv": 51,
+        "splits/internal_val_submission.csv": 51,
+        "splits/internal_val_truth.csv": 51,
+        "splits/proxy_ds2/val_gallery.csv": 51,
+        "splits/proxy_ds2/val_queries.csv": 51,
+        "splits/proxy_ds3/val_gallery.csv": 51,
+        "splits/proxy_ds3/val_queries.csv": 51,
+        "src/local_eval.py": 270,
+        "src/simulate.py": 445,
+        "test.py": 14
+      }
+    }
+  ]
+}
