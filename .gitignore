@@ -1,0 +1,21 @@
+# ---- Large downloaded datasets (Kaggle) — never push ----
+/dataset1/
+/dataset2/
+/dataset3/
+
+# ---- Generated eval splits, proxies & run artifacts (regenerable) ----
+# Recreate with: python -m Alvaro.src.local_eval split  and  Alvaro.src.simulate
+/splits/
+
+# ---- Python virtual env & caches ----
+/.venv/
+/.monai_persistent/
+__pycache__/
+*.pyc
+
+# ---- OS / editor cruft ----
+.DS_Store
+
+# ---- Local agent tooling (not shared) ----
+/.claude/
+/.codex/
