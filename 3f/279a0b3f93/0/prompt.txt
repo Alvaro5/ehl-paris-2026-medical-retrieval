@@ -1,0 +1,146 @@
+consider @preview_from_modal.py and @README.md and @sample_submission.csv and @slice_clip_baseline.py , can you create a baseline on modal that runs sift through opencv and then downloads submission csv locally?
+
+---
+
+✓ Created objects.
+├── 🔨 Created mount C:\Users\laure\Projects\ehl2026\ehl-paris-2026-medical-retrieval\laurence\sift_baseline_modal.py
+└── 🔨 Created function run_sift_baseline.
+Running SIFT baseline on Modal...
+Skipping dataset1/val: CSV not found
+Saved 0 rows to tmp.csv
+Skipping dataset1/test: CSV not found
+Skipping dataset2/val: CSV not found
+Skipping dataset2/test: CSV not found
+Skipping dataset3/val: CSV not found
+Skipping dataset3/test: CSV not found
+Computing SIFT features for 0 images...
+Done computing features.
+Generated 0 submission rows.
+Stopping app - local entrypoint completed.
+✓ App completed. View run at https://modal.com/apps/ehl-2026-hack/main/ap-FCPfShDSuwMAQRV2xeheoq - this is thedata structure https://www.kaggle.com/competitions/ehl-paris-medical-image-retrieval/data
+
+---
+
+continue
+
+---
+
+├── 🔨 Created mount C:\Users\laure\Projects\ehl2026\ehl-paris-2026-medical-retrieval\laurence\sift_baseline_modal.py
+└── 🔨 Created function run_sift_baseline.
+Running SIFT baseline on Modal...
+Found data root: /data/ehl-paris-medical-image-retrieval
+Computing SIFT features for 754 images...
+  0/754
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/nibabel/loadsave.py", line 104, in load
+    stat_result = os.stat(filename)
+                  ^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/data/ehl-paris-medical-image-retrieval/dataset2/images/test/gallery/g_0138d31917f4.nii.gz'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/pkg/modal/_runtime/container_io_manager.py", line 948, in handle_input_exception
+    yield
+  File "/pkg/modal/_container_entrypoint.py", line 254, in run_input_sync
+    values = io_context.call_function_sync()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/pkg/modal/_runtime/container_io_manager.py", line 225, in call_function_sync
+    expected_value_or_values = self.finalized_function.callable(*args, **kwargs)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/sift_baseline_modal.py", line 144, in run_sift_baseline
+    features[img_id] = compute_feature(img_path)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/sift_baseline_modal.py", line 80, in compute_feature
+    img = nib.load(str(nii_path))
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/nibabel/loadsave.py", line 106, in load
+    raise FileNotFoundError(f"No such file or no access: '{filename}'")
+FileNotFoundError: No such file or no access: '/data/ehl-paris-medical-image-retrieval/dataset2/images/test/gallery/g_0138d31917f4.nii.gz'
+Stopping app - uncaught exception raised locally: FileNotFoundError("No such file or no access: '/data/ehl-paris-medical-image-retrieval/dataset2/images/test/gallery/g_0138d31917f4.nii.gz'").
+╭─────────────────────────────── Traceback (most recent call last) ────────────────────────────────╮
+│ C:\Users\laure\Projects\ehl2026\ehl-paris-2026-medical-retrieval\laurence\\sift_baseline_modal.p │
+│ y:170 in main                                                                                    │
+│                                                                                                  │
+│   169 │   print("Running SIFT baseline on Modal...")                                             │
+│ ❱ 170 │   csv_content = run_sift_baseline.remote()                                               │
+│   171 │   out_path = Path(out)                                                                   │
+│                                                                                                  │
+│ C:\Users\laure\AppData\Local\Programs\Python\Python313\Lib\site-packages\modal\_object.py:304 in │
+│ wrapped                                                                                          │
+│                                                                                                  │
+│   303 │   │   await self.hydrate()                                                               │
+│ ❱ 304 │   │   return await method(self, *args, **kwargs)                                         │
+│   305                                                                                            │
+│                                                                                                  │
+│ C:\Users\laure\AppData\Local\Programs\Python\Python313\Lib\site-packages\modal\_functions.py:174 │
+│ 1 in remote                                                                                      │
+│                                                                                                  │
+│   1740 │   │                                                                                     │
+│ ❱ 1741 │   │   return await self._call_function(args, kwargs)                                    │
+│   1742                                                                                           │
+│                                                                                                  │
+│ C:\Users\laure\AppData\Local\Programs\Python\Python313\Lib\site-packages\modal\_functions.py:168 │
+│ 5 in _call_function                                                                              │
+│                                                                                                  │
+│   1684 │   │                                                                                     │
+│ ❱ 1685 │   │   return await invocation.run_function()                                            │
+│   1686                                                                                           │
+│                                                                                                  │
+│ C:\Users\laure\AppData\Local\Programs\Python\Python313\Lib\site-packages\modal\_functions.py:297 │
+│ in run_function                                                                                  │
+│                                                                                                  │
+│    296 │   │   │   item = await self._get_single_output()                                        │
+│ ❱  297 │   │   │   return await _process_result(item.result, item.data_format, self.stub, self.  │
+│    298                                                                                           │
+│                                                                                                  │
+│ C:\Users\laure\AppData\Local\Programs\Python\Python313\Lib\site-packages\modal\_utils\function_u │
+│ tils.py:529 in _process_result                                                                   │
+│                                                                                                  │
+│   528 │   │   │                                                                                  │
+│ ❱ 529 │   │   │   raise exc_with_hints(exc)                                                      │
+│   530                                                                                            │
+│                                                                                                  │
+│               ...Remote call to Modal Function (ta-01KW4S7EV55NYR8N9FPJQSC15R)...                │
+│                                                                                                  │
+│ /root/sift_baseline_m
+
+---
+
+why is there a .gz at the end? should it just be .nii
+
+---
+
+can you try another appraoch in a new .py file that uses dino-v3 embdedding similarity
+
+---
+
+how can you improve accuracy of output csv file?
+
+---
+
+sure
+
+---
+
+you're at 0.32 score, how can you increase performance to 1.0 ?
+
+---
+
+I think the score is cumulative of all 1,2,3, together
+
+---
+
+sure
+
+---
+
+what model arch is the fine tune model?
+
+---
+
+how can you even further improve accuracy?
+
+---
+
+sure
