@@ -1,0 +1,21 @@
+consider the task and the files in @laurence\ how would you improve this to have an extremely strong improvement?
+
+---
+
+can you look at all methods in @laurence and summarize in tabular format in a new .md file?
+
+---
+
+can you consider another method using SigLIP ?
+
+---
+
+can you visualize the results exported as png files? matplotlib/opencv
+
+---
+
+continue
+
+---
+
+noono I meant visualize the data (like a few samples)
