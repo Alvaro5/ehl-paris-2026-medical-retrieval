@@ -8,9 +8,12 @@ file (e.g. --datasets 2 --splits val) lets us read that pool's real MRR in
 isolation.
 
 Rankers:
-  plain_mi  -- mi_ranker.MIRanker (fast; grid 64).
-  reg_mi    -- reg_mi_ranker.RegMIRanker (ANTs register-then-MI; grid 96).
-               --transform {Affine,SyN} picks the ANTs transform.
+  plain_mi       -- mi_ranker.MIRanker (fast; grid 64).
+  reg_mi         -- reg_mi_ranker.RegMIRanker (ANTs register-then-MI; grid 96).
+                    --transform {Affine,SyN} picks the ANTs transform.
+  affine_argmin  -- affine_ranker.AffineArgminRanker: header-only, ranks by
+                    ascending affine Frobenius distance. The confirmed ds3
+                    geometry leak (perfect bijection); runs in seconds.
 
 --ranker sets ONE ranker for every dataset. --ranker-map overrides it PER dataset,
 e.g. "1:plain_mi,2:reg_mi,3:plain_mi" -- the combined submission: ds1/ds3 use plain
@@ -32,9 +35,9 @@ space-separated gallery, best->worst.
 
 No network, no Kaggle API -- this only writes a CSV locally.
 
-    # combined: plain MI for ds1/ds3, reg-MI affine for ds2 (377 rows)
+    # combined: plain MI for ds1, reg-MI affine for ds2, header leak for ds3 (377 rows)
     python -m Alvaro.src.make_submission --data-root . \
-        --ranker-map "1:plain_mi,2:reg_mi,3:plain_mi" --transform Affine \
+        --ranker-map "1:plain_mi,2:reg_mi,3:affine_argmin" --transform Affine \
         --out Alvaro/generated/regmi_full_submission.csv
     # sharded ds2-heavy run, then merge
     python -m Alvaro.src.make_submission ... --query-shard 1/4 --out OUT.csv
@@ -50,12 +53,18 @@ from typing import Dict, List, Tuple
 
 import pandas as pd
 
+from .affine_ranker import AffineArgminRanker
 from .mi_ranker import MIRanker
 from .reg_mi_ranker import RegMIRanker, REG_GRID
 
+RANKER_NAMES = ("plain_mi", "reg_mi", "affine_argmin")
+
 ALL_SPLITS = ("val", "test")
 SUBMISSION_COLS = ["query_id", "target_id_ranking"]
-PER_REG_SEC = 0.49  # measured affine cost at 96^3 (single-threaded ANTs)
+# Measured single-threaded ANTs cost per registration at 96^3, per transform.
+# Affine and SyN are timed; anything else falls back to the affine figure.
+PER_REG_SEC_BY_TRANSFORM = {"Affine": 0.49, "SyN": 1.24}
+DEFAULT_PER_REG_SEC = 0.49
 
 
 def resolve(data_root: Path, rel: str) -> Path:
@@ -152,7 +161,7 @@ def _parse_ranker_map(spec: str | None, default_name: str, ds_ids: List[int]) ->
                 continue
             ds_str, name = item.split(":")
             name = name.strip()
-            if name not in ("plain_mi", "reg_mi"):
+            if name not in RANKER_NAMES:
                 raise SystemExit(f"--ranker-map: unknown ranker '{name}'")
             mapping[int(ds_str)] = name
     return mapping
@@ -189,7 +198,7 @@ def main(argv: List[str] | None = None) -> None:
                     help="comma-separated dataset ids to include (e.g. '2')")
     ap.add_argument("--splits", default="val,test",
                     help="comma-separated splits to include (default 'val,test')")
-    ap.add_argument("--ranker", choices=["plain_mi", "reg_mi"], default="plain_mi",
+    ap.add_argument("--ranker", choices=list(RANKER_NAMES), default="plain_mi",
                     help="ranker for ALL datasets unless overridden by --ranker-map")
     ap.add_argument("--ranker-map", default=None,
                     help="per-dataset override, e.g. '1:plain_mi,2:reg_mi,3:plain_mi'")
@@ -254,19 +263,21 @@ def main(argv: List[str] | None = None) -> None:
 
     # 4) Upfront cost estimate over THIS shard's queries (reg pairs dominate; plain
     #    pairs are negligible). Print BEFORE any heavy work so it can be aborted.
+    # Per-registration cost depends on the ANTs transform (SyN ~2.5x affine).
+    per_reg = PER_REG_SEC_BY_TRANSFORM.get(args.transform, DEFAULT_PER_REG_SEC)
     reg_pairs = sum(len(st) for _, _, _, _, st, rn in shard if rn == "reg_mi")
-    est_sec = reg_pairs * PER_REG_SEC
+    est_sec = reg_pairs * per_reg
     print(f"\n[cost] shard {i}/{n}: {len(shard)} queries "
           f"({sum(rn=='reg_mi' for *_, rn in shard)} reg, "
-          f"{sum(rn=='plain_mi' for *_, rn in shard)} plain)")
-    print(f"[cost] {reg_pairs} registrations @ ~{PER_REG_SEC:.2f}s = "
+          f"{sum(rn!='reg_mi' for *_, rn in shard)} header/plain)")
+    print(f"[cost] {reg_pairs} {args.transform} registrations @ ~{per_reg:.2f}s = "
           f"~{est_sec/60:.1f} min (~{est_sec/3600:.2f} h) projected wall-time "
-          f"(+ plain MI negligible)")
+          f"(+ header/plain MI negligible)")
     for ds, split, q, t in sets:
         rn = ranker_of_ds[ds]
         npairs = len(q) * len(t)
-        tag = (f"~{npairs*PER_REG_SEC/60:.1f} min reg" if rn == "reg_mi"
-               else "negligible (plain)")
+        tag = (f"~{npairs*per_reg/60:.1f} min reg" if rn == "reg_mi"
+               else "negligible (header/plain)")
         print(f"       dataset{ds}/{split} [{rn}]: {len(q)}x{len(t)} = {npairs} pairs -> {tag}")
 
     if args.dry_run:
@@ -282,6 +293,8 @@ def main(argv: List[str] | None = None) -> None:
         rankers["plain_mi"] = MIRanker(grid=64)
     if "reg_mi" in need:
         rankers["reg_mi"] = RegMIRanker(grid=reg_grid, type_of_transform=args.transform)
+    if "affine_argmin" in need:
+        rankers["affine_argmin"] = AffineArgminRanker()  # header-only ds3 leak
 
     # 6) Sanity block (only shard 1, to avoid every container repeating it): prefer
     #    a reg pool (that's the risky ranker), else dataset1/val, else first set.
@@ -297,13 +310,35 @@ def main(argv: List[str] | None = None) -> None:
     print("\n=== ranking ===")
     t0 = time.time()
     rows: List[Dict[str, str]] = []
+    # Per-pool top-1 (argmin) target, to check it forms a clean bijection.
+    pool_top1: Dict[Tuple[int, str], Dict[str, str]] = {}
+    pool_gallery: Dict[Tuple[int, str], int] = {}
     for ds, split, qid, qpath, st_targets, rn in shard:
         ranking = rankers[rn].rank(qid, qpath, st_targets)  # full gallery best->worst
         # Ranking length == gallery size: every target appears exactly once.
         rows.append({"query_id": qid, "target_id_ranking": " ".join(ranking)})
+        pool_top1.setdefault((ds, split), {})[qid] = ranking[0]
+        pool_gallery[(ds, split)] = len(st_targets)
         if len(rows) % 10 == 0:
             print(f"  ranked {len(rows)}/{len(shard)} queries "
                   f"({time.time() - t0:.1f}s elapsed)", flush=True)
+
+    # Top-1 bijection sanity: a true geometry leak (ds3 affine) makes every query's
+    # argmin a DISTINCT target, so the chosen top-1s are a permutation of the
+    # gallery. NOTE: only meaningful for a full (un-sharded) pool; a round-robin
+    # shard sees a query subset, so collisions there are expected, not a bug.
+    print("\n=== TOP-1 BIJECTION SANITY (each pool: are argmin targets distinct?) ===")
+    for (ds, split), top1 in pool_top1.items():
+        chosen = list(top1.values())
+        distinct, nq, ng = len(set(chosen)), len(chosen), pool_gallery[(ds, split)]
+        bij = distinct == nq == ng
+        print(f"  dataset{ds}/{split}: {distinct}/{nq} distinct top-1 targets "
+              f"(gallery={ng}) -> {'clean bijection' if bij else 'NOT a bijection'}")
+        if not bij and n == 1:  # only warn on a complete pool, not a partial shard
+            from collections import Counter
+            dups = [t for t, c in Counter(chosen).items() if c > 1]
+            print(f"    !! WARN: {len(dups)} target(s) picked by >1 query "
+                  f"(leak NOT clean): {dups[:8]}{' ...' if len(dups) > 8 else ''}")
 
     # 8) Write + verify. Single run (N=1) writes --out and must total n_expected;
     #    a shard writes a partial and must total this shard's query count.
