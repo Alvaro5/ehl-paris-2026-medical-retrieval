@@ -92,8 +92,15 @@ class RegMIRanker:
         td, tm = digitize_array(warped)        # registration-specific -> not cached
         return _nmi(qd, qm, td, tm)
 
-    def rank(self, query_id: str, query_path: str, targets: Dict[str, str]) -> List[str]:
-        """Order target_ids by descending post-registration NMI with the query."""
+    def score_targets(
+        self, query_path: str, targets: Dict[str, str]
+    ) -> List[Tuple[str, float]]:
+        """[(target_id, post-registration NMI)] sorted descending.
+
+        Mirrors MIRanker.score_targets so this ranker is drop-in for the same
+        callers (rank, the submission sanity block). rank drops the scores; the
+        sanity block keeps them to show top-vs-tail separation on real data.
+        """
         scored: List[Tuple[str, float]] = []
         for tid, tpath in targets.items():
             try:
@@ -103,7 +110,11 @@ class RegMIRanker:
                 score = 0.0
             scored.append((tid, score))
         scored.sort(key=lambda x: -x[1])  # stable: ties keep input order
-        return [tid for tid, _ in scored]
+        return scored
+
+    def rank(self, query_id: str, query_path: str, targets: Dict[str, str]) -> List[str]:
+        """Order target_ids by descending post-registration NMI with the query."""
+        return [tid for tid, _ in self.score_targets(query_path, targets)]
 
 
 def make_reg_mi_ranker(grid: int = REG_GRID, type_of_transform: str = "Affine"):
