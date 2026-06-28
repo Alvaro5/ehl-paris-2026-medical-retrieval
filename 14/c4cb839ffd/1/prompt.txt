@@ -1,0 +1,295 @@
+Read the root CLAUDE.md and, for REFERENCE ONLY, laurence/dinov2_baseline_modal.py
+and laurence/sift_baseline_modal.py. Then read Alvaro/src/local_eval.py and
+Alvaro/src/simulate.py so you understand the existing harness and proxy outputs.
+
+HARD RULE: work ONLY inside the Alvaro/ directory. You may READ files anywhere in
+the repo, but you must NOT create, modify, move, or delete anything outside Alvaro/.
+Do not import from laurence/; if you need its logic, copy the relevant parts into
+Alvaro/ so our code stays independent of Laurence's.
+
+CONTEXT (write this into a new Alvaro/CLAUDE.md as the first step):
+- Task = cross-modal MRI retrieval; score = mean of (ds1_MRR, ds2_MRR, ds3_MRR),
+  equal weight. ds2/ds3 have no labels = 2/3 of the score = a generalization problem.
+- We now have Modal GPU access (Laurence's workspace; `modal` is pip-installed).
+  Modal pattern, from laurence/*.py: volume `ehl-2026-vol-2` mounts at /data;
+  a `_find_data_root` rglobs for dataset1/; GPU functions use
+  @app.function(image=..., volumes={"/data": vol}, gpu="T4", ...); the remote fn
+  returns a CSV string and a local_entrypoint writes it; image built with
+  modal.Image.debian_slim(...).pip_install(...); a `.nii.gz`→`.nii` resolve
+  fallback handles uncompressed local copies.
+- Local-eval noise bar: a single 50-query seed has ~±0.05 MRR noise — only trust
+  changes larger than that. Proxies are SYNTHETIC: directional, not exact predictors
+  of Kaggle.
+- Plan: Phase A (this task) = local per-dataset diagnostic + MI ranker. Phase B =
+  ds3 header-geometry probe. Phase C = Modal full submission + rank fusion.
+
+GOAL OF THIS TASK: produce one comparison table — method × dataset → MRR — on our
+local proxies, establishing the baseline failure pattern and testing mutual
+information as a first improvement. Everything here runs on CPU/MPS, no Modal,
+no Kaggle.
+
+Build three modules in Alvaro/src/, in checkpoints. After each checkpoint, show me
+it works before moving on.
+
+CHECKPOINT 1 — evaluate.py (the reusable engine):
+  First, DISCOVER and print the actual paths of the existing split + proxy files
+  (internal val queries/gallery/truth, and the proxy_ds2 / proxy_ds3 query+gallery
+  CSVs) produced by local_eval.py and simulate.py. Do not hardcode paths you
+  haven't confirmed exist.
+  Then write a function that takes (a) a ranking function with signature
+  rank(query_id, query_path, {target_id: target_path}) -> ordered list of target_ids,
+  and (b) a queries_csv + gallery_csv + truth_csv, runs the ranker over all queries,
+  and scores the result with the EXISTING local_eval.py MRR (do not reimplement MRR).
+  It should evaluate across three pools: internal ds1 split, proxy_ds2, proxy_ds3,
+  and return a dict of per-pool MRR. Add a tiny smoke test with a trivial
+  random-ranking function to confirm wiring (expect ~random MRR).
+
+CHECKPOINT 2 — dinov2_ranker.py (the baseline to beat):
+  Port Laurence's DINOv2 zero-shot logic (3 axial slices at 0.35/0.50/0.65 →
+  uint8 RGB → DINOv2-base CLS token → average slices → unit vector → cosine) into a
+  device-agnostic ranking function (cuda/mps/cpu auto-select). It must be importable
+  and plug into evaluate.py. Run it across the three pools and print the MRR per pool.
+  (If local DINOv2 is too slow on the proxy image counts, tell me — we move it to
+  Modal rather than waiting.)
+
+CHECKPOINT 3 — mi_ranker.py (the first improvement):
+  A ranking function that scores each query↔target by NORMALIZED MUTUAL INFORMATION
+  of voxel intensities. Implementation notes: load volumes with nibabel; restrict to
+  the brain region (nonzero-voxel mask of the union/intersection); for speed,
+  downsample volumes (e.g. to ~64^3) before the joint histogram; compute NMI =
+  (H(A)+H(B))/H(A,B) from a 2D histogram (32–64 bins). This is training-free.
+  Run it across the three pools and print MRR per pool.
+
+FINAL OUTPUT: print one table — rows {dinov2, mutual_information}, columns
+{ds1_internal, ds2_proxy, ds3_proxy} — and a one-line read of the pattern. My
+hypothesis to confirm or refute: DINOv2 is decent on ds1 and collapses toward
+random on ds2_proxy; MI wins ds1, is okay on ds3_proxy (geometry roughly
+preserved), and fails on ds2_proxy (independent deformation). If the table shows
+something else, say so plainly — don't massage it to fit.
+
+Before writing each checkpoint, briefly explain your plan so I can confirm I
+understand it. Keep functions small, comment non-obvious indexing, and don't give
+me code I couldn't explain back to you.
+
+---
+
+Read Alvaro/CLAUDE.md and Alvaro/src/mi_ranker.py and Alvaro/src/evaluate.py so
+you reuse the existing MI ranker. For REFERENCE ONLY (do not import), look at how
+laurence/dinov2_baseline_modal.py builds its prediction_specs loop, its resolve()
+with the .nii.gz→.nii fallback, and _find_data_root.
+
+HARD RULE: work ONLY inside Alvaro/. Read anywhere, write nowhere outside Alvaro/.
+Copy any logic you need from laurence/ into Alvaro/ — do not import from laurence/.
+
+GOAL: a script Alvaro/src/make_submission.py that runs a ranking function over the
+REAL val+test data for all three datasets and writes a Kaggle-format combined CSV
+(query_id,target_id_ranking), so we can submit pure-MI and read the real
+per-dataset numbers.
+
+Requirements:
+- CLI: --data-root (required), --out (default Alvaro/generated/mi_submission.csv),
+  --datasets (default "1,2,3" — lets us generate a single-dataset file so we can
+  read that dataset's real MRR via Kaggle's "omitted=0, ×3" rule), --downsample
+  (passed through to the MI ranker).
+- Mirror Laurence's six prediction sets: for each requested dataset, both val and
+  test, load {split}_queries.csv and {split}_gallery.csv, resolve image paths with
+  the .nii.gz→.nii fallback, and skip cleanly with a printed warning if a CSV or
+  image is missing.
+- For each query, rank its SAME-dataset SAME-split gallery with the MI ranker and
+  write the full space-separated ranking. Never mix pools.
+- CACHE the loaded+downsampled volume arrays in memory (a dict keyed by image path)
+  so a volume that appears in multiple comparisons is read and downsampled once.
+  Print progress every ~10 queries and total wall-clock time at the end.
+- SANITY BLOCK before writing: for the first 2 dataset1 val queries, print the
+  top-3 ranked target_ids with their MI scores and the score of the WORST-ranked
+  target, so I can eyeball that MI actually discriminates (top score clearly above
+  the tail) before I trust the file. If the spread looks degenerate, say so.
+- Print the row count at the end and assert it equals the number of queries across
+  the requested datasets/splits.
+
+Do NOT submit anything or call any network API — just write the CSV locally.
+
+Before writing, explain your plan for the caching and the prediction-set loop so I
+can confirm. Keep it small; comment the ranking-length and pool-isolation logic.
+
+---
+
+Read Alvaro/CLAUDE.md, Alvaro/src/mi_ranker.py, Alvaro/src/evaluate.py, and
+Alvaro/src/compare.py so you reuse the existing harness and the plain-MI ranker.
+
+HARD RULE: work ONLY inside Alvaro/. Read anywhere, write nowhere outside Alvaro/.
+
+GOAL: test whether registering images BEFORE computing MI recovers dataset2, where
+plain MI collapses to 0.29. This is a LOCAL proxy experiment — no Modal, no Kaggle.
+
+Add antspyx to the .venv (`uv pip install antspyx`). WARNING: it's a large/slow
+install and import; confirm `import ants` works before building, and tell me if it
+fails so we pivot to SimpleITK rather than burning time.
+
+Build Alvaro/src/reg_mi_ranker.py: a ranking function with the SAME interface the
+existing evaluate.py expects, that for each query↔target pair:
+  1. Loads both volumes (nibabel), downsamples for speed (start ~96^3 — registration
+     needs more detail than the 64^3 we use for plain MI; make it a param).
+  2. Registers the TARGET to the QUERY with ANTs affine:
+     ants.registration(fixed=query_img, moving=target_img, type_of_transform="Affine").
+     Use the registered "warpedmovout" output.
+  3. Computes normalized mutual information between the query and the REGISTERED
+     target, reusing our existing NMI code from mi_ranker.py (do not reimplement it).
+  4. Ranks gallery targets by that post-registration NMI.
+  Make type_of_transform a parameter (default "Affine") so we can later try "SyN".
+
+Then evaluate it across the three local pools (ds1 internal, ds2 proxy, ds3 proxy)
+via evaluate.py, and print a table comparing PLAIN MI vs REGISTER-THEN-MI:
+
+  pool          plain_MI    reg_then_MI
+  ds1_internal    1.00         ____
+  ds2_proxy       0.29         ____
+  ds3_proxy       0.98         ____
+
+THE KEY QUESTION: does ds2_proxy jump well above 0.29? Also confirm ds1/ds3 do NOT
+regress (registering already-aligned images shouldn't hurt much). If ds2 barely
+moves, say so plainly — that means affine isn't enough and we try SyN next.
+
+Performance note: 40x40 pairwise affine on the proxy is ~1600 registrations. Print
+progress and total time. If a single affine takes >5s at 96^3, downsample more and
+tell me — we need to know the per-registration cost before scaling to real data.
+
+Before writing, explain your plan and confirm the antspyx import works. Keep the
+ranking function small and reuse mi_ranker's NMI.
+
+---
+
+Read Alvaro/src/mi_ranker.py, Alvaro/src/reg_mi_ranker.py, Alvaro/src/evaluate.py.
+Work ONLY inside Alvaro/.
+
+CONTEXT: real ds2 test is 100x100 = 10,000 registrations — too many for SyN by
+tomorrow. We need shortlist-then-register: plain MI picks each query's top-K
+candidates, and register-then-MI only re-ranks those K.
+
+Build TWO things:
+
+1) Alvaro/src/shortlist_recall.py — a diagnostic, NO registration, runs in seconds.
+   For the ds2 proxy (and ds1/ds3 proxies for comparison), rank every query's
+   gallery with the EXISTING plain MI ranker, and report, for K in {5,10,15,20,25,30}:
+   the fraction of queries whose TRUE target falls within plain-MI's top-K. This is
+   the recall ceiling of shortlisting. Print a small table K -> recall per pool.
+   This tells us the smallest safe K before we commit to it.
+
+2) Alvaro/src/reg_mi_shortlist_ranker.py — a ranking function (same interface as the
+   others, plugs into evaluate.py) that: (a) ranks the full gallery with plain MI,
+   (b) takes the top-K, (c) re-scores ONLY those K with reg_mi_ranker (reuse it,
+   don't reimplement), (d) returns the K re-ranked targets followed by the remaining
+   gallery in their plain-MI order (so every row is still a full ranking). K and
+   transform are params (default K=25, transform="Affine").
+
+Do NOT launch any long run — the proxy comparison is already running in the
+background and ANTs is single-threaded; a second heavy run would just contend for
+CPU. Just build both, and run ONLY shortlist_recall.py (it's registration-free and
+fast). Report the recall table.
+
+Before writing, confirm the plain MI ranker can be called standalone for the
+shortlist step, and explain how you append the non-shortlisted targets so rankings
+stay full-length and valid for Kaggle.
+
+---
+
+<task-notification>
+<task-id>b68q6q6gw</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<status>stopped</status>
+<summary>No completion record was found for this background shell command from the previous session. It may have been stopped (via the UI, Monitor timeout, or agent teardown — these leave no transcript marker), or it may have been running when the previous Claude Code process exited. Check the output file for partial results before assuming it completed.</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b68q6q6gw</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-alvaro-Documents-GitHub-ehl-paris-2026-medical-retrieval/e0a28f97-91ef-4b6e-8d49-3671a23ddfd8/tasks/b68q6q6gw.output</output-file>
+<status>completed</status>
+<summary>Background command "Run full plain-vs-reg comparison (grid 96) in background" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Read Alvaro/src/make_submission.py, Alvaro/src/reg_mi_ranker.py, Alvaro/src/mi_ranker.py.
+Work ONLY inside Alvaro/.
+
+GOAL: produce a register-then-MI submission on REAL data, but de-risk with a fast
+ds2-val-only check before any long run.
+
+1) Extend make_submission.py (or a sibling make_reg_submission.py — your call, keep
+   it inside Alvaro/) to support a --ranker {plain_mi, reg_mi} flag and a --transform
+   {Affine,SyN} flag. reg_mi uses RegMIRanker (reuse it; do not reimplement). Keep
+   everything else — pool isolation, .nii.gz/.nii resolve, full-length rankings,
+   row-count assertion, the sanity block, progress + timing — identical.
+   IMPORTANT: registration is O(N^2) per pool, so print an upfront cost estimate
+   (n_queries * n_targets * ~0.49s) and the projected wall-time BEFORE starting, so
+   I can abort if a run is mis-scoped.
+
+2) Run ONLY this first, foreground: generate a reg-MI (affine, grid 96) submission
+   for dataset2 VALIDATION rows only (40x40 = 1600 regs, ~13 min). Write it to
+   Alvaro/generated/regmi_ds2_val.csv. This is the file I'll submit in isolation to
+   read real ds2 MRR (x3 rule). Do NOT run ds2 test or the full submission yet.
+
+3) Print the ds2-val sanity block: for the first 2 queries, the post-registration
+   NMI of the top-3 vs the worst, so I can eyeball that registration is separating
+   true from distractors on REAL data before I trust the file.
+
+Do NOT launch the full real submission. We branch on the real ds2-val number:
+high (~0.85+) -> scale affine to all test rows next; mediocre (~0.5) -> switch to
+SyN. Report the file path and the sanity block; I'll submit and read the score.
+
+---
+
+<task-notification>
+<task-id>bfskgi3ba</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-alvaro-Documents-GitHub-ehl-paris-2026-medical-retrieval/e0a28f97-91ef-4b6e-8d49-3671a23ddfd8/tasks/bfskgi3ba.output</output-file>
+<status>completed</status>
+<summary>Background command "Run reg-MI affine ds2 val submission" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Read Alvaro/src/make_submission.py and Alvaro/src/reg_mi_ranker.py. Work ONLY inside Alvaro/.
+
+CONTEXT: real ds2-val with affine reg-then-MI scored 0.884 (0.2947 x3). Affine
+generalizes — we are scaling it to the full real submission. NOT switching to SyN.
+
+GOAL: one combined Kaggle submission, reg-MI affine grid 96, covering ALL rows:
+ds1/ds2/ds3 x {val,test}. But ds1 and ds3 do NOT need registration (plain MI already
+scores ~0.98 on both, and registering aligned images cost a tiny -0.019). So:
+  - ds1 (val+test): plain MI  (fast, 64^3)
+  - ds3 (val+test): plain MI  (fast, 64^3)
+  - ds2 (val+test): reg-MI affine (96^3)  <-- the only registered pool
+This avoids ~16k pointless registrations (ds1 100x100 + ds3 77x77) and cuts runtime
+to just ds2: 40x40 + 100x100 = 11,600 regs (~95 min single-threaded).
+
+Implement a per-dataset ranker choice in make_submission.py (a --ranker-map or
+similar) so one run emits the full combined CSV with plain MI for ds1/ds3 and reg-MI
+for ds2. Keep all existing guarantees: pool isolation, .nii.gz/.nii resolve,
+full-length rankings, row-count assertion (expect 377 total), sanity blocks, upfront
+cost estimate, progress + timing.
+
+PARALLELISM: ds2 is the bottleneck and is embarrassingly parallel over queries. If
+running locally would exceed ~90 min, structure the ds2 pass so it can be sharded
+(process a --query-shard i/N slice and write a partial), then a merge step combines
+shards + the plain-MI ds1/ds3 rows into the final 377-row CSV. If you can run it on
+Laurence's Modal workspace (modal is installed; see laurence/*.py for the volume
+ehl-2026-vol-2 mount pattern), prefer that — fan ds2 queries across containers. Your
+call on local-shard vs Modal; tell me which and the projected wall-time BEFORE
+launching.
+
+Print the upfront cost estimate and STOP for my confirmation before the long run.
+Output: Alvaro/generated/regmi_full_submission.csv (377 rows).
+
+---
+
+<task-notification>
+<task-id>bd9hf5x23</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-alvaro-Documents-GitHub-ehl-paris-2026-medical-retrieval/e6119d66-105d-4be8-af5e-b6a16fc74084/tasks/bd9hf5x23.output</output-file>
+<status>completed</status>
+<summary>Background command "Launch full combined reg-MI submission (background)" completed (exit code 0)</summary>
+</task-notification>
