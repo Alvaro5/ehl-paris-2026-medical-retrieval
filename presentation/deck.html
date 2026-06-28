@@ -246,9 +246,9 @@ td .num { font-size: 1.15em; font-weight: 700; font-family: 'Space Grotesk', san
      02  THE TASK
 ══════════════════════════════════════ -->
 <section>
-  <div class="beat">The Problem</div>
-  <h2>Match each T1 query → T2 of the same patient</h2>
-  <div class="sp"></div>
+  <div class="beat">The Task</div>
+  <h2>Match each T1 query → its T2 in the gallery</h2>
+  <p class="dim" style="font-size:0.66em; margin-bottom:0.4em;">Score = mean MRR across three datasets · two of three have no labels</p>
   <table>
     <thead>
       <tr>
@@ -261,8 +261,8 @@ td .num { font-size: 1.15em; font-weight: 700; font-family: 'Space Grotesk', san
     <tbody>
       <tr>
         <td><span class="amber">dataset1</span></td>
-        <td>Registered to a shared grid</td>
-        <td>350 train pairs</td>
+        <td>Shared grid</td>
+        <td>350 pairs</td>
         <td><span class="green">Nothing — easy</span></td>
       </tr>
       <tr>
@@ -281,12 +281,11 @@ td .num { font-size: 1.15em; font-weight: 700; font-family: 'Space Grotesk', san
   </table>
   <div class="sp"></div>
   <div class="card-left" style="font-size:0.73em;">
-     <span class="white">dataset3 looks hardest</span> (surgical tissue removal)
-    — but <span class="amber">dataset2 is the real hard case.</span>
-    It deliberately destroys voxel correspondence. Any method relying on spatial alignment collapses there.
+    dataset3 <em>looks</em> hardest (surgery) — but <span class="amber">dataset2 is the real challenge:</span>
+    it destroys voxel correspondence, so any alignment-based method collapses there.
   </div>
   <aside class="notes">
-    MRR = 1/rank of the true target. Macro-average means each dataset is worth exactly one third regardless of size.
+    MRR = 1/rank of the true target. Each dataset is worth exactly one third regardless of size.
     Two of three datasets have no training labels — two-thirds of the score is a pure generalization test.
     This constraint shaped our entire method choice.
   </aside>
@@ -296,12 +295,12 @@ td .num { font-size: 1.15em; font-weight: 700; font-family: 'Space Grotesk', san
      03  THE TRAP
 ══════════════════════════════════════ -->
 <section>
-  <div class="beat">Beat 1 — The Trap</div>
-  <h2>The obvious move: DINOv2</h2>
+  <div class="beat">Baseline</div>
+  <h2>The obvious move — deep embeddings — fails</h2>
   <div class="sp"></div>
   <div class="cols">
     <div class="col">
-      <p style="font-size:0.68em; color:#9CA3AF; margin-bottom:0.5em;">3 axial slices → ViT-B/14 → cosine similarity</p>
+      <p style="font-size:0.68em; color:#9CA3AF; margin-bottom:0.5em;">DINOv2 ViT-B/14 · 3 axial slices · cosine similarity</p>
       <div class="card center" style="padding:1em 0.8em;">
         <span class="big-num red">~0.20</span>
         <span style="font-size:0.48em; color:#9CA3AF; display:block; margin-top:0.3em;">macro MRR — barely above random</span>
@@ -310,16 +309,13 @@ td .num { font-size: 1.15em; font-weight: 700; font-family: 'Space Grotesk', san
     <div class="col">
       <ul>
         <li style="font-size:0.73em; margin-bottom:0.5em;">
-          <span class="white">Global pooling</span> discards spatial position —
-          but <em>where</em> structures are is precisely what identifies a patient
+          <span class="white">Global pooling</span> discards <em>where</em> structures are — the thing that identifies a patient
         </li>
         <li style="font-size:0.73em; margin-bottom:0.5em;">
-          <span class="white">Domain gap</span> — DINOv2 trained on natural photos;
-          grayscale MRI is far outside its distribution
+          <span class="white">Domain gap</span> — trained on natural photos, not grayscale MRI
         </li>
         <li style="font-size:0.73em;">
-          <span class="white">No modality bridge</span> — same encoder sees T1 and T2
-          with no mechanism to cross the contrast gap
+          <span class="white">No modality bridge</span> — nothing crosses the T1↔T2 contrast gap
         </li>
       </ul>
     </div>
@@ -335,12 +331,12 @@ td .num { font-size: 1.15em; font-weight: 700; font-family: 'Space Grotesk', san
      04  THE REFRAME
 ══════════════════════════════════════ -->
 <section>
-  <div class="beat">Beat 2 — The Reframe</div>
-  <h2>This is an <span class="amber">alignment</span> problem,<br>not a representation problem.</h2>
+  <div class="beat">Reframe</div>
+  <h2>An <span class="amber">alignment</span> problem,<br>not a representation problem.</h2>
   <div class="sp"></div>
   <div class="card-left" style="font-size:0.8em; margin-bottom:0.6em;">
     The identifying signal lives in <span class="white">whether voxels correspond</span>
-    — which global embeddings destroy.
+    — exactly what global embeddings throw away.
   </div>
   <div class="sp"></div>
   <div class="cols" style="gap:0.7em;">
@@ -365,33 +361,38 @@ td .num { font-size: 1.15em; font-weight: 700; font-family: 'Space Grotesk', san
      05  THE METHOD: MI
 ══════════════════════════════════════ -->
 <section>
-  <div class="beat">Beat 3 — The Method</div>
+  <div class="beat">Method</div>
   <h2>Mutual Information — no training, no labels</h2>
-  <div class="sp"></div>
-  <div class="card formula">
-    NMI = ( H(query) + H(target) ) / H(query, target)
+  <div class="cols" style="gap:1.1em; align-items:center;">
+    <div class="col" style="flex:0 0 52%;">
+      <img src="figures/mutual_information_pair.gif" alt="Joint histogram and per-slice NMI for a matched pair"
+           style="width:100%; border-radius:8px; display:block;">
+      <p style="font-size:0.5em; color:#9CA3AF; margin-top:0.35em;">
+        Joint histogram (left) + per-slice NMI: matched pair <span class="green">(blue)</span>
+        stays above the impostor <span class="red">(red)</span>.
+      </p>
+    </div>
+    <div class="col">
+      <div class="card formula" style="font-size:0.82em; padding:0.5em 0.7em;">
+        NMI = ( H(q) + H(t) ) / H(q, t)
+      </div>
+      <ul style="margin-top:0.4em;">
+        <li style="font-size:0.68em; margin-bottom:0.4em;">
+          <span class="white">Same patient, aligned</span> → T1 voxel predicts T2 voxel → <span class="green">high NMI</span>
+        </li>
+        <li style="font-size:0.68em; margin-bottom:0.4em;">
+          <span class="white">Wrong patient</span> → anatomy misaligns → relationship washes out → <span class="red">low NMI</span>
+        </li>
+        <li style="font-size:0.68em;">
+          Measures statistical dependence, not brightness — works across modalities.
+        </li>
+      </ul>
+    </div>
   </div>
-  <div class="sp"></div>
-  <ul>
-    <li style="font-size:0.74em; margin-bottom:0.48em;">
-      <span class="white">Same patient, aligned</span> → every voxel samples the same anatomy
-      → T1 intensity strongly predicts T2 intensity
-      → <span class="green">high NMI</span>
-    </li>
-    <li style="font-size:0.74em; margin-bottom:0.48em;">
-      <span class="white">Wrong patient</span> → anatomy doesn't line up
-      → statistical relationship washes out
-      → <span class="red">low NMI</span>
-    </li>
-    <li style="font-size:0.74em;">
-      <span class="white">Works across modalities</span> — measures statistical dependence,
-      not brightness similarity. The standard cross-modal similarity metric for decades.
-    </li>
-  </ul>
   <aside class="notes">
-    We restrict computation to the brain mask, downsample to ~64³ voxels for speed, and use 32–64 histogram bins.
-    The normalized form ranges from 1 (independent) to 2 (fully dependent) and is less sensitive to overlap amount.
-    No fine-tuning. No dataset-specific training. Pure signal theory.
+    We restrict to the brain mask, downsample to ~64³ voxels, and use 32–64 histogram bins.
+    The normalized form is less sensitive to overlap amount than raw MI.
+    No fine-tuning. No dataset-specific training. Pure signal theory — the standard cross-modal registration metric for decades.
   </aside>
 </section>
 
@@ -399,7 +400,7 @@ td .num { font-size: 1.15em; font-weight: 700; font-family: 'Space Grotesk', san
      06  FIRST RESULTS + DIAGNOSIS
 ══════════════════════════════════════ -->
 <section>
-  <div class="beat">Beat 3 — First Results</div>
+  <div class="beat">Diagnosis</div>
   <h2>The table <span class="amber">is</span> the diagnosis</h2>
   <div class="sp"></div>
   <table>
@@ -452,12 +453,11 @@ td .num { font-size: 1.15em; font-weight: 700; font-family: 'Space Grotesk', san
      07  THE FIX
 ══════════════════════════════════════ -->
 <section>
-  <div class="beat">Beat 4 — The Fix</div>
+  <div class="beat">The Fix</div>
   <h2>Register first, then score</h2>
   <div class="sp"></div>
   <p style="font-size:0.72em; color:#9CA3AF; margin-bottom:0.55em;">
-    Dataset 2 breaks MI because query and target are warped independently — voxels no longer correspond.
-    Fix: undo the deformation first, then apply MI.
+    dataset2's voxels don't correspond — so undo the deformation first (ANTs affine, 12 DoF), then apply MI.
   </p>
   <div class="cols" style="align-items:center; gap:0.5em; margin-bottom:0.5em;">
     <div class="col card center">
@@ -482,8 +482,7 @@ td .num { font-size: 1.15em; font-weight: 700; font-family: 'Space Grotesk', san
     </div>
   </div>
   <p style="font-size:0.58em; color:#9CA3AF; margin-top:0.5em;">
-    ANTs affine registration (antspyx) — 12 DoF. Applied only to dataset 2.
-    ds1 and ds3 are already aligned — registration only adds cost.
+    Applied only to dataset2 — ds1 and ds3 are already aligned, so registration there only adds cost.
   </p>
   <aside class="notes">
     We validated on 40 held-out ds2 queries before committing to the full 100×100 test run.
@@ -496,8 +495,8 @@ td .num { font-size: 1.15em; font-weight: 700; font-family: 'Space Grotesk', san
      08  KNOWING YOUR TOOLS
 ══════════════════════════════════════ -->
 <section>
-  <div class="beat">Beat 5 — Knowing Your Tools</div>
-  <h2>We tested deformable registration.<br>It was <span class="red">worse</span>.</h2>
+  <div class="beat">Ablation</div>
+  <h2>Deformable registration was <span class="red">worse</span></h2>
   <div class="sp"></div>
   <div class="cols" style="gap:0.8em; margin-bottom:0.5em;">
     <div class="col card center">
@@ -513,13 +512,12 @@ td .num { font-size: 1.15em; font-weight: 700; font-family: 'Space Grotesk', san
     </div>
   </div>
   <div class="card-left" style="font-size:0.72em;">
-    <span class="white">Why:</span> a dense warp has enough freedom to deform a <em>wrong</em> patient's brain onto the query.
-    SyN raises the similarity of distractors — shrinking the gap between true match and impostors.
-    Affine removes nuisance pose and scale <em>without</em> enough freedom to fake a match.
+    <span class="white">Why:</span> a dense warp can deform a <em>wrong</em> patient's brain onto the query,
+    raising impostor similarity and shrinking the gap to the true match.
+    Affine removes pose and scale without enough freedom to fake a match.
   </div>
   <p style="font-size:0.6em; color:#9CA3AF; margin-top:0.45em;">
-    Lesson: optimal registration flexibility for <em>retrieval</em> is lower than for registration quality.
-    More powerful is not always better when the task is discriminative ranking.
+    For discriminative ranking, the best registration flexibility is lower than for registration quality.
   </p>
   <aside class="notes">
     This is a genuine scientific finding, not just an empirical tuning detail.
@@ -532,8 +530,8 @@ td .num { font-size: 1.15em; font-weight: 700; font-family: 'Space Grotesk', san
      09  BENCHMARK FINDING
 ══════════════════════════════════════ -->
 <section>
-  <div class="beat">Beat 6 — Benchmark Finding</div>
-  <h2>Dataset 3 leaks the answer<br>through the file header</h2>
+  <div class="beat">Benchmark Finding</div>
+  <h2>dataset3 leaks the answer<br>through the file header</h2>
   <div class="sp"></div>
   <div class="cols" style="gap:0.9em; align-items:flex-start;">
     <div class="col">
@@ -567,8 +565,7 @@ td .num { font-size: 1.15em; font-weight: 700; font-family: 'Space Grotesk', san
     </div>
   </div>
   <div class="card-left" style="font-size:0.7em; margin-top:0.45em;">
-    We flag this as a <span class="white">data-quality finding</span> and report it to the organizers.
-    Useful feedback on benchmark construction — not a shortcut we hide.
+    Reported to the organizers as a <span class="white">data-quality finding</span> — not a shortcut we hide.
   </div>
   <aside class="notes">
     Dataset1 and dataset2 have globally constant headers — no leak there.
