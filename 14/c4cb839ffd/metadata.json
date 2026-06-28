@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "14c4cb839ffd",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "Alvaro/src/make_submission.py",
+    "Alvaro/src/reg_mi_ranker.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/14/c4cb839ffd/0/metadata.json",
+      "transcript": "/14/c4cb839ffd/0/full.jsonl",
+      "content_hash": "/14/c4cb839ffd/0/content_hash.txt",
+      "prompt": "/14/c4cb839ffd/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4456,
+    "cache_creation_tokens": 43589,
+    "cache_read_tokens": 495822,
+    "output_tokens": 16517,
+    "api_call_count": 14
+  }
+}

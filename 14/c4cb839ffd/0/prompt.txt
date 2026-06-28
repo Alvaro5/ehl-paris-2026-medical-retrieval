@@ -1,0 +1,33 @@
+Read Alvaro/CLAUDE.md and Alvaro/src/make_submission.py. Work ONLY inside Alvaro/.
+This is a READ-ONLY diagnostic — no submission, no registration, no long run.
+
+HYPOTHESIS: the test data contains a deterministic metadata leak (NIfTI header
+geometry and/or header text fields) that identifies matching query<->target pairs
+without image content. Three teams are at exactly 1.00000, which content methods
+don't produce — we want to find what they found.
+
+Build Alvaro/src/leak_probe.py that does THREE things and prints findings:
+
+1) LABELED DISCOVERY (dataset1 train pairs, which we have ground truth for):
+   For ~50 true (query,target) pairs, load BOTH NIfTI headers (nibabel) and compare
+   field by field: shape, affine matrix (np.allclose), pixdim/zooms, qform/sform
+   codes, qoffset, srow_*, and the text fields descrip, aux_file, db_name,
+   intent_name, plus any header.extensions. Report, per field: (a) does it MATCH
+   within true pairs, and (b) is it DISCRIMINATIVE — i.e. does it NOT match for
+   randomly paired wrong (query,target)? A field that is pair-identical AND
+   cross-pair-distinct is a leak. Print a ranked list of leak candidates.
+
+2) STRUCTURAL CHECK on ds3 and ds2 VAL (unlabeled): build the
+   queries x targets matrix of affine-matrix distance (Frobenius norm of
+   affine_q - affine_t) and shape-equality. Report: for each query, the smallest
+   affine distance and the gap to the 2nd smallest; and whether argmin-per-query
+   forms a clean BIJECTION (each target chosen exactly once). A clean bijection with
+   near-zero best distances and a large gap to 2nd = the geometry leak is real on
+   that dataset, even without labels.
+
+3) RAW DUMP: for 3 ds3 val queries, print the full header text fields and affine of
+   the query and its 3 nearest-affine targets, so I can eyeball any embedded ID.
+
+Print a clear verdict per dataset: "geometry leak: yes/no", "text-field leak:
+yes/no", and which field(s). Do NOT build a ranker or submit yet — first we confirm
+what the signal is.
