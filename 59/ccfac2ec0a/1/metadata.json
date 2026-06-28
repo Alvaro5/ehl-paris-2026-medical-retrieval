@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "59ccfac2ec0a",
+  "session_id": "bbca3b75-ceb7-4e4d-9763-77ea261448d2",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-28T09:45:02.701295Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-4-6",
+  "turn_id": "f33fbabb0eec",
+  "token_usage": {
+    "input_tokens": 6518,
+    "cache_creation_tokens": 109634,
+    "cache_read_tokens": 941274,
+    "output_tokens": 15737,
+    "api_call_count": 16
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 1920,
+      "user_lines_removed": 739,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "README.md": 255,
+        "laurence/.claude/settings.local.json": 7,
+        "laurence/CHANGES.md": 63,
+        "laurence/mattes_mi_modal.py": 223,
+        "laurence/voxelmorph_modal.py": 510,
+        "mi.csv": 378,
+        "slice_clip_baseline.py": 484
+      },
+      "user_removed_per_file": {
+        "README.md": 255,
+        "slice_clip_baseline.py": 484
+      }
+    }
+  ]
+}
