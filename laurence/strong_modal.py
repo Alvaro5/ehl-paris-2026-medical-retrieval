@@ -100,6 +100,15 @@ NCC_SIZE = (48, 48, 48)
 NCC_WEIGHT = 0.5
 DINO_WEIGHT = 0.5
 
+# Gradient-magnitude NMI (all datasets)
+# For ds2/ds3: DINO alone previously; now blended with grad-NMI.
+# Grad-NMI is rotation-invariant and modality-independent, giving a
+# volumetric signal where NCC (which requires alignment) cannot help.
+GRAD_NMI_SIZE = 48          # per-axis target after downsample
+GRAD_NMI_BINS = 48          # joint-histogram bins
+GRAD_NMI_WEIGHT_DS1  = 0.15 # small extra boost on top of NCC+DINO blend
+GRAD_NMI_WEIGHT_DS23 = 0.30 # meaningful volumetric signal for unaligned ds
+
 
 def _download_model():
     from transformers import AutoImageProcessor, AutoModel
@@ -116,6 +125,7 @@ image = (
         "nibabel>=5.3",
         "numpy>=2.0",
         "Pillow>=10.0",
+        "scipy>=1.13",
     )
     .run_function(_download_model)
 )
@@ -502,6 +512,89 @@ def run_strong() -> str:
     del Q1_gpu, T1_gpu
     print(f"NCC matrix: {ncc_scores_d1.shape}")
 
+    # ------------------------------------------------------------------ stage 1b: gradient-magnitude NMI
+    # Rotation-invariant, modality-independent volumetric signal.
+    # Provides a complementary score to NCC (ds1) and fills the volumetric
+    # gap for ds2/ds3 where NCC cannot help due to broken spatial alignment.
+
+    print("\n=== Stage 1b: Gradient-magnitude NMI (all datasets) ===")
+    from concurrent.futures import ThreadPoolExecutor as _TPE
+    from scipy.ndimage import zoom as _zoom
+
+    def _load_grad(item: tuple) -> tuple[str, np.ndarray]:
+        img_id, path = item
+        try:
+            arr = nib.load(str(path)).get_fdata(dtype=np.float32)
+            if arr.ndim == 4:
+                arr = arr[..., 0]
+            arr = np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
+            factors = tuple(GRAD_NMI_SIZE / s for s in arr.shape)
+            arr = _zoom(arr, factors, order=1, prefilter=False).astype(np.float32)
+        except Exception as e:
+            print(f"  GRAD load error {path}: {e}")
+            arr = np.zeros((GRAD_NMI_SIZE,) * 3, dtype=np.float32)
+        # CoM translation correction
+        fg = arr > 0
+        if fg.any():
+            cm     = np.argwhere(fg).mean(axis=0)
+            centre = np.array(arr.shape) / 2.0
+            shift  = np.round(centre - cm).astype(int)
+            arr    = np.roll(arr, (int(shift[0]), int(shift[1]), int(shift[2])), axis=(0, 1, 2))
+        # Gradient magnitude
+        gx = np.gradient(arr, axis=0)
+        gy = np.gradient(arr, axis=1)
+        gz = np.gradient(arr, axis=2)
+        return img_id, np.sqrt(gx * gx + gy * gy + gz * gz).astype(np.float32)
+
+    # Collect all unique paths across all datasets
+    _all_grad_paths: dict[str, _Path] = {}
+    for ps in prediction_sets:
+        _all_grad_paths.update(ps["queries"])
+        _all_grad_paths.update(ps["targets"])
+    print(f"  Loading gradient magnitudes for {len(_all_grad_paths)} volumes...")
+    grad_cache: dict[str, np.ndarray] = {}
+    with _TPE(max_workers=16) as ex:
+        for img_id, g in ex.map(_load_grad, sorted(_all_grad_paths.items())):
+            grad_cache[img_id] = g
+    print(f"  Loaded {len(grad_cache)} gradient volumes, shape {next(iter(grad_cache.values())).shape}")
+
+    def _grad_nmi(a: np.ndarray, b: np.ndarray, intersect: bool = False) -> float:
+        af = a.ravel(); bf = b.ravel()
+        mask = (af != 0) & (bf != 0) if intersect else (af != 0) | (bf != 0)
+        if mask.sum() < 50:
+            return 0.0
+        h, _, _ = np.histogram2d(af[mask], bf[mask], bins=GRAD_NMI_BINS)
+        h /= h.sum() + 1e-10
+        pa = h.sum(axis=1); pb = h.sum(axis=0)
+        ha  = -(pa * np.log(pa + 1e-10)).sum()
+        hb  = -(pb * np.log(pb + 1e-10)).sum()
+        hab = -(h  * np.log(h  + 1e-10)).sum()
+        v = float((ha + hb) / (hab + 1e-10))
+        return v if np.isfinite(v) else 0.0
+
+    # Compute per-dataset gradient-NMI score matrices
+    grad_nmi_scores: dict[str, np.ndarray] = {}   # key: "ds/split"
+    grad_nmi_qids:   dict[str, list[str]]  = {}
+    grad_nmi_tids:   dict[str, list[str]]  = {}
+    for ps in prediction_sets:
+        ds    = ps["ds"]
+        split = ps["split"]
+        key   = f"{ds}/{split}"
+        use_intersect = (ds == "dataset3")
+        q_ids = [qid for qid in sorted(ps["queries"]) if qid in grad_cache]
+        t_ids = [tid for tid in sorted(ps["targets"]) if tid in grad_cache]
+        nq, nt = len(q_ids), len(t_ids)
+        print(f"  {key}: {nq}×{nt} grad-NMI pairs")
+        S = np.zeros((nq, nt), dtype=np.float32)
+        for i, qid in enumerate(q_ids):
+            gq = grad_cache[qid]
+            for j, tid in enumerate(t_ids):
+                S[i, j] = _grad_nmi(gq, grad_cache[tid], intersect=use_intersect)
+        grad_nmi_scores[key] = S
+        grad_nmi_qids[key]   = q_ids
+        grad_nmi_tids[key]   = t_ids
+    print("  Gradient-NMI matrices computed.")
+
     # ------------------------------------------------------------------ stage 2: feature extraction
 
     print("\n=== Stage 2: RadDINO feature extraction ===")
@@ -814,13 +907,37 @@ def run_strong() -> str:
         if len(q_slices) == len(query_ids) and len(t_slices) == len(target_ids):
             dino_scores = colbert_rerank(dino_scores, q_slices, t_slices)
 
+        key = f"{ds}/{pred_set['split']}"
+        has_grad = (
+            key in grad_nmi_scores
+            and grad_nmi_qids.get(key) == query_ids
+            and grad_nmi_tids.get(key) == target_ids
+        )
+
         if ds == "dataset1":
             q_ncc = [ncc_q_idx[qid] for qid in query_ids]
             t_ncc = [ncc_t_idx[tid] for tid in target_ids]
             ncc_sub = ncc_scores_d1[np.ix_(q_ncc, t_ncc)]
-            scores = NCC_WEIGHT * minmax_rows(ncc_sub) + DINO_WEIGHT * minmax_rows(dino_scores)
+            if has_grad:
+                grad_sub = grad_nmi_scores[key]
+                scores = (
+                    NCC_WEIGHT * minmax_rows(ncc_sub)
+                    + (DINO_WEIGHT - GRAD_NMI_WEIGHT_DS1) * minmax_rows(dino_scores)
+                    + GRAD_NMI_WEIGHT_DS1 * minmax_rows(grad_sub)
+                )
+            else:
+                scores = NCC_WEIGHT * minmax_rows(ncc_sub) + DINO_WEIGHT * minmax_rows(dino_scores)
         else:
-            scores = dino_scores
+            if has_grad:
+                grad_sub = grad_nmi_scores[key]
+                # Gradient-NMI fills the volumetric gap: rotation-invariant,
+                # modality-independent signal where NCC cannot help.
+                scores = (
+                    (1.0 - GRAD_NMI_WEIGHT_DS23) * minmax_rows(dino_scores)
+                    + GRAD_NMI_WEIGHT_DS23 * minmax_rows(grad_sub)
+                )
+            else:
+                scores = dino_scores
 
         for i, qid in enumerate(query_ids):
             ranked = [target_ids[j] for j in np.argsort(-scores[i])]

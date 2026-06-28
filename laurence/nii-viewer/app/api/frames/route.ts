@@ -6,23 +6,9 @@ import * as nifti from 'nifti-reader-js';
 const DATA_ROOT =
   'C:\\Users\\laure\\Projects\\ehl2026\\ehl-paris-2026-medical-retrieval\\data\\ehl-paris-medical-image-retrieval';
 
-// ── Volume cache (survives across requests in the same server process) ──────
-
-interface CachedVolume {
-  data: Float32Array;
-  nx: number;
-  ny: number;
-  nz: number;
-}
-
+interface CachedVolume { data: Float32Array; nx: number; ny: number; nz: number; }
 const MAX_CACHED = 10;
 const volumeCache = new Map<string, CachedVolume>();
-
-function evictIfNeeded() {
-  if (volumeCache.size >= MAX_CACHED) {
-    volumeCache.delete(volumeCache.keys().next().value!);
-  }
-}
 
 function loadVolume(filePath: string): CachedVolume | null {
   if (volumeCache.has(filePath)) return volumeCache.get(filePath)!;
@@ -49,27 +35,23 @@ function loadVolume(filePath: string): CachedVolume | null {
     default:  { const v = new Int16Array(imageBuffer);   for (let i = 0; i < total; i++) data[i] = v[i]; break; }
   }
 
-  evictIfNeeded();
+  if (volumeCache.size >= MAX_CACHED) volumeCache.delete(volumeCache.keys().next().value!);
   volumeCache.set(filePath, { data, nx, ny, nz });
   return { data, nx, ny, nz };
 }
 
-function resolveSafe(relPath: string): string | null {
-  const resolved = path.resolve(DATA_ROOT, relPath);
+function resolveSafe(rel: string): string | null {
+  const resolved = path.resolve(DATA_ROOT, rel);
   if (!resolved.startsWith(path.resolve(DATA_ROOT))) return null;
   if (fs.existsSync(resolved)) return resolved;
   if (resolved.endsWith('.gz') && fs.existsSync(resolved.slice(0, -3))) return resolved.slice(0, -3);
   return null;
 }
 
-// ── Route ───────────────────────────────────────────────────────────────────
-
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const relPath = searchParams.get('path');
-  const zStr = searchParams.get('z');
-
-  if (!relPath) return NextResponse.json({ error: 'No path specified' }, { status: 400 });
+  if (!relPath) return NextResponse.json({ error: 'No path' }, { status: 400 });
 
   const filePath = resolveSafe(relPath);
   if (!filePath) return NextResponse.json({ error: 'File not found' }, { status: 404 });
@@ -79,28 +61,21 @@ export async function GET(request: NextRequest) {
 
   const { data, nx, ny, nz } = vol;
   const sliceSize = nx * ny;
-  const z = zStr != null ? Math.max(0, Math.min(parseInt(zStr, 10), nz - 1)) : Math.floor(nz / 2);
-  const offset = z * sliceSize;
+  const allFrames = new Uint8Array(nz * sliceSize);
 
-  // Percentile windowing on this slice only
-  const slice = data.subarray(offset, offset + sliceSize);
-  const sorted = Float32Array.from(slice).sort();
-  const p2  = sorted[Math.floor(sorted.length * 0.02)];
-  const p98 = sorted[Math.floor(sorted.length * 0.98)];
-  const range = p98 - p2 || 1;
-
-  const pixels = new Uint8Array(sliceSize);
-  for (let i = 0; i < sliceSize; i++) {
-    pixels[i] = Math.max(0, Math.min(255, Math.round(((slice[i] - p2) / range) * 255)));
+  for (let z = 0; z < nz; z++) {
+    const slice = data.subarray(z * sliceSize, (z + 1) * sliceSize);
+    const sorted = Float32Array.from(slice).sort();
+    const p2  = sorted[Math.floor(sorted.length * 0.02)];
+    const p98 = sorted[Math.floor(sorted.length * 0.98)];
+    const range = p98 - p2 || 1;
+    for (let i = 0; i < sliceSize; i++) {
+      allFrames[z * sliceSize + i] = Math.max(0, Math.min(255, Math.round(((slice[i] - p2) / range) * 255)));
+    }
   }
 
   return NextResponse.json({
-    nx,
-    ny,
-    nz,
-    z,
-    pixels: Buffer.from(pixels).toString('base64'),
-    windowMin: p2,
-    windowMax: p98,
+    nz, nx, ny,
+    frames: Buffer.from(allFrames).toString('base64'),
   });
 }

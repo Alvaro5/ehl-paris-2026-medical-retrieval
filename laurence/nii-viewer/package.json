@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "gifenc": "^1.0.3",
     "next": "16.2.9",
     "nifti-reader-js": "^0.8.0",
     "react": "19.2.4",
